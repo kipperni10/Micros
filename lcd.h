@@ -1,18 +1,15 @@
-#ifndef LCD_H
-#define	LCD_H
+#ifndef DISPLAY_H_
+#define DISPLAY_H_
 
-#include <xc.h> // Biblioteca padrão do compilador XC8
+#include <stdint.h>
 
-// !!!! precisará mapear estes pinos no MPLABX de acordo com as ligações do PICsimLab ou Placa Física.
-#define LCD_RS LATBbits.LATB0 // Exemplo: Pino B0
-#define LCD_EN LATBbits.LATB1 // Exemplo: Pino B1
-#define LCD_DATA LATD         // Exemplo: Porta D inteira para dados (8 bits)
+void inicializa_display(void);
+void display_comando(uint8_t comando);
+void display_dado(uint8_t dado);
+void display_string(const char *texto);
+void display_limpar(void);
+void display_posiciona(uint8_t linha, uint8_t coluna);
+void display_on(void);
+void display_off(void);
 
-void lcd_cmd(char cmd);
-void lcd_init(void);
-void lcd_char(char data);
-void lcd_string(const char *str);
-void lcd_clear(void);
-void lcd_set_cursor(char row, char col);
-
-#endif	/* LCD_H */
+#endif /* DISPLAY_H_ */
