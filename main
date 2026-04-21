@@ -5,87 +5,176 @@
 #include "display.h"
 #include "teclado.h"
 
+// Estados da nossa maquina principal
 typedef enum { DESLIGADO, LOGIN, MENU_PRINCIPAL } t_estado;
 t_estado estado_atual = DESLIGADO;
 
+// Fica travado lendo o teclado, mas se segurar o '*' ele desliga
 char espera_tecla_com_shutdown() {
-	uint16_t tempo_off = 0;
-	while(1) {
-		if (tecla_pressionada_bruta('*')) {
-			tempo_off++;
-			_delay_ms(10);
-			if (tempo_off >= 400) return 'X';
-			} else {
-			tempo_off = 0;
-			char t = le_tecla();
-			if (t != 0) return t;
-		}
-	}
+    uint16_t tempo_off = 0;
+    while(1) {
+        if (tecla_pressionada_bruta('*')) {
+            tempo_off++;
+            _delay_ms(10);
+            if (tempo_off >= 400) return 'X'; // Retorna X pra avisar o sistema pra desligar
+        } else {
+            tempo_off = 0;
+            char t = le_tecla();
+            if (t != 0) return t;
+        }
+    }
+}
+
+// Funcao auxiliar pra ler inputs do usuario (senha, cartao, valor)
+// Retorna 1 se o cara confirmou com '#', e 0 se cancelou com '*'
+uint8_t le_dados_cliente(char* buffer, uint8_t tamanho_maximo, uint8_t ocultar) {
+    uint8_t indice = 0;
+    buffer[0] = '\0';
+
+    while(1) {
+        char tecla = espera_tecla_com_shutdown();
+        
+        if (tecla == 'X') return 0; // Desligamento forcado
+        if (tecla == '*') return 0; // Botao de cancelar operacao
+
+        // Confirma a digitacao se ja tiver digitado algo
+        if (tecla == '#' && indice > 0) {
+            return 1; 
+        }
+
+        // Se for um numero e ainda couber na tela
+        if (tecla >= '0' && tecla <= '9' && indice < tamanho_maximo) {
+            buffer[indice] = tecla;
+            indice++;
+            buffer[indice] = '\0'; // Fecha a string
+            
+            if (ocultar) {
+                display_dado('*'); // Esconde a senha
+            } else {
+                display_dado(tecla);
+            }
+        }
+    }
+}
+
+// Lida com toda a logica da tela de venda a vista
+void fluxo_venda_vista() {
+    char buffer_dados[10];
+
+    // Passo 1: Pegar o valor
+    display_limpar();
+    display_string("Valor da venda:");
+    display_posiciona(1, 0);
+    display_string("R$ ");
+    if (!le_dados_cliente(buffer_dados, 6, 0)) return; 
+
+    // Passo 2: Debito ou Credito
+    display_limpar();
+    display_string("1-Debito 2-Cred");
+    display_posiciona(1, 0);
+    while(1) {
+        char tipo = espera_tecla_com_shutdown();
+        if (tipo == '*' || tipo == 'X') return; // Cancela
+        if (tipo == '1' || tipo == '2') {
+            display_dado(tipo);
+            _delay_ms(400); // Tempinho pro usuario ver o que apertou
+            break;
+        }
+    }
+
+    // Passo 3: Ler o Cartao
+    display_limpar();
+    display_string("Insira Cartao:");
+    display_posiciona(1, 0);
+    if (!le_dados_cliente(buffer_dados, 6, 0)) return;
+
+    // Passo 4: Senha do Cliente
+    display_limpar();
+    display_string("Senha do cartao:");
+    display_posiciona(1, 0);
+    if (!le_dados_cliente(buffer_dados, 6, 1)) return; // '1' para ocultar com *
+
+    // Passo 5: Simulacao de comunicacao com o BD (Fase 4 do projeto)
+    display_limpar();
+    display_string("Processando...");
+    _delay_ms(1500); 
+    
+    // TODO: Adicionar logica da porta Serial 19200 bps aqui futuramente
+    
+    display_limpar();
+    display_string("Venda Aprovada!");
+    _delay_ms(2000);
 }
 
 int main(void) {
-	configura_pinos_teclado();
-	inicializa_display();
-	
-	while(1) {
-		switch(estado_atual) {
-			
-			case DESLIGADO:
-			if (tecla_pressionada_bruta('#')) {
-				uint16_t tempo = 0;
-				while (tecla_pressionada_bruta('#') && tempo < 300) {
-					tempo++; _delay_ms(10);
-				}
-				if (tempo >= 300) {
-					display_on();
-					estado_atual = LOGIN;
-					while(tecla_pressionada_bruta('#'));
-				}
-			}
-			break;
+    configura_pinos_teclado();
+    inicializa_display();
+    
+    while(1) {
+        switch(estado_atual) {
+            
+            case DESLIGADO:
+                // Segurar '#' por 3 segundos pra ligar a maquina
+                if (tecla_pressionada_bruta('#')) {
+                    uint16_t tempo = 0;
+                    while (tecla_pressionada_bruta('#') && tempo < 300) {
+                        tempo++; 
+                        _delay_ms(10);
+                    }
+                    if (tempo >= 300) {
+                        display_on();
+                        estado_atual = LOGIN;
+                        while(tecla_pressionada_bruta('#')); // Espera o cara soltar o dedo
+                    }
+                }
+                break;
 
-			case LOGIN:
-			display_limpar();
-			display_string("SENHA ACESSO:");
-			display_posiciona(1, 0);
-			
-			char senha[5] = {0};
-			uint8_t i = 0;
-			while(i < 4) {
-				char t = espera_tecla_com_shutdown();
-				if (t == 'X') { estado_atual = DESLIGADO; break; }
-				
-				if (t >= '0' && t <= '9') {
-					senha[i++] = t;
-					display_dado('*');
-				}
-			}
+            case LOGIN:
+                display_limpar();
+                display_string("SENHA ACESSO:");
+                display_posiciona(1, 0);
+                
+                char senha_operador[5];
+                // Se o cara cancelar (X ou *), a funcao retorna 0 e a gente desliga
+                if (!le_dados_cliente(senha_operador, 4, 1)) {
+                    estado_atual = DESLIGADO;
+                    display_limpar();
+                    display_off();
+                    break;
+                }
 
-			if (estado_atual == DESLIGADO) { display_limpar(); display_off(); break; }
+                // Verifica contra os usuarios cadastrados no PDF
+                if (strcmp(senha_operador, "1254") == 0 || 
+                    strcmp(senha_operador, "2349") == 0 || 
+                    strcmp(senha_operador, "0738") == 0) {
+                    estado_atual = MENU_PRINCIPAL;
+                } else {
+                    display_limpar();
+                    display_string("SENHA INVALIDA");
+                    _delay_ms(2000);
+                }
+                break;
 
-			if (strcmp(senha, "1254") == 0 || strcmp(senha, "2349") == 0 || strcmp(senha, "0738") == 0) {
-				estado_atual = MENU_PRINCIPAL;
-				} else {
-				display_limpar();
-				display_string("SENHA INVALIDA");
-				_delay_ms(2000);
-			}
-			break;
+            case MENU_PRINCIPAL:
+                display_limpar();
+                display_string("1-Venda a Vista");
+                display_posiciona(1, 0);
+                display_string("2-Parcela *-Sair");
 
-			case MENU_PRINCIPAL:
-			display_limpar();
-			display_string("MicPay Pronto");
-			display_posiciona(1, 0);
-			display_string("1-Venda  *-Sair");
-
-			char op = espera_tecla_com_shutdown();
-			if (op == 'X') {
-				estado_atual = DESLIGADO;
-				display_limpar();
-				display_off();
-			}
-			break;
-		}
-	}
-	return 0;
+                char opcao = espera_tecla_com_shutdown();
+                
+                if (opcao == 'X' || opcao == '*') {
+                    estado_atual = DESLIGADO;
+                    display_limpar();
+                    display_off();
+                } 
+                else if (opcao == '1') {
+                    fluxo_venda_vista();
+                }
+                // else if (opcao == '2') fluxo_venda_parcelada();
+                // else if (opcao == '3') fluxo_estorno();
+                break;
+        }
+    }
+    return 0;
 }
