@@ -1,3 +1,9 @@
+/*
+ * PROJETO 1 - MICROPROCESSADORES (MicPay)
+ * Arquivo: main.c
+ * Descricao: Logica principal da maquina de estados e fluxos de venda.
+ */
+
 #define F_CPU 16000000UL
 #include <avr/io.h>
 #include <util/delay.h>
@@ -5,18 +11,18 @@
 #include "display.h"
 #include "teclado.h"
 
-// Estados da nossa maquina principal
+// Definicão dos estados do sistema [cite: 35, 38]
 typedef enum { DESLIGADO, LOGIN, MENU_PRINCIPAL } t_estado;
 t_estado estado_atual = DESLIGADO;
 
-// Fica travado lendo o teclado, mas se segurar o '*' ele desliga
+// Funcao auxiliar: Aguarda uma tecla, mas monitora o tempo de '*' para desligar o sistema [cite: 29]
 char espera_tecla_com_shutdown() {
     uint16_t tempo_off = 0;
     while(1) {
         if (tecla_pressionada_bruta('*')) {
             tempo_off++;
             _delay_ms(10);
-            if (tempo_off >= 400) return 'X'; // Retorna X pra avisar o sistema pra desligar
+            if (tempo_off >= 400) return 'X'; // Codigo interno para sinalizar Power Off (4s)
         } else {
             tempo_off = 0;
             char t = le_tecla();
@@ -25,84 +31,85 @@ char espera_tecla_com_shutdown() {
     }
 }
 
-// Funcao auxiliar pra ler inputs do usuario (senha, cartao, valor)
-// Retorna 1 se o cara confirmou com '#', e 0 se cancelou com '*'
-uint8_t le_dados_cliente(char* buffer, uint8_t tamanho_maximo, uint8_t ocultar) {
+/* * Funcao: le_dados_cliente
+ * Parametros: 
+ * - buffer: onde guardar os digitos
+ * - tamanho_maximo: limite de caracteres
+ * - ocultar: se 1, mostra '*' no display [cite: 36, 59]
+ * - auto_submit: se 1, confirma automaticamente ao atingir o tamanho_maximo
+ */
+uint8_t le_dados_cliente(char* buffer, uint8_t tamanho_maximo, uint8_t ocultar, uint8_t auto_submit) {
     uint8_t indice = 0;
     buffer[0] = '\0';
 
     while(1) {
         char tecla = espera_tecla_com_shutdown();
         
-        if (tecla == 'X') return 0; // Desligamento forcado
-        if (tecla == '*') return 0; // Botao de cancelar operacao
+        if (tecla == 'X') return 0; // Desligamento por timeout do '*'
+        if (tecla == '*') return 0; // Cancelamento manual
 
-        // Confirma a digitacao se ja tiver digitado algo
+        // Confirmacao manual via '#' [cite: 58, 79]
         if (tecla == '#' && indice > 0) {
             return 1; 
         }
 
-        // Se for um numero e ainda couber na tela
+        // Processamento de digitos numericos
         if (tecla >= '0' && tecla <= '9' && indice < tamanho_maximo) {
             buffer[indice] = tecla;
             indice++;
-            buffer[indice] = '\0'; // Fecha a string
+            buffer[indice] = '\0'; 
             
-            if (ocultar) {
-                display_dado('*'); // Esconde a senha
-            } else {
-                display_dado(tecla);
+            if (ocultar) display_dado('*'); 
+            else display_dado(tecla);
+
+            // Se o modo auto_submit estiver ativo (ex: Login), confirma sozinho no final
+            if (auto_submit && indice == tamanho_maximo) {
+                _delay_ms(300); 
+                return 1;
             }
         }
     }
 }
 
-// Lida com toda a logica da tela de venda a vista
+// Fluxo de operacao: Venda a Vista [cite: 52]
 void fluxo_venda_vista() {
     char buffer_dados[10];
 
-    // Passo 1: Pegar o valor
     display_limpar();
-    display_string("Valor da venda:");
+    display_string("VALOR VENDA:");
     display_posiciona(1, 0);
     display_string("R$ ");
-    if (!le_dados_cliente(buffer_dados, 6, 0)) return; 
+    // Venda exige confirmacao manual com '#' [cite: 58]
+    if (!le_dados_cliente(buffer_dados, 6, 0, 0)) return; 
 
-    // Passo 2: Debito ou Credito
     display_limpar();
-    display_string("1-Debito 2-Cred");
+    display_string("1-DEB 2-CRED");
     display_posiciona(1, 0);
-    while(1) {
-        char tipo = espera_tecla_com_shutdown();
-        if (tipo == '*' || tipo == 'X') return; // Cancela
-        if (tipo == '1' || tipo == '2') {
-            display_dado(tipo);
-            _delay_ms(400); // Tempinho pro usuario ver o que apertou
-            break;
-        }
+    char tipo = 0;
+    while(tipo != '1' && tipo != '2') {
+        tipo = espera_tecla_com_shutdown();
+        if (tipo == '*' || tipo == 'X') return;
     }
 
-    // Passo 3: Ler o Cartao
     display_limpar();
-    display_string("Insira Cartao:");
+    display_string("NUMERO CARTAO:");
     display_posiciona(1, 0);
-    if (!le_dados_cliente(buffer_dados, 6, 0)) return;
+    if (!le_dados_cliente(buffer_dados, 6, 0, 0)) return;
 
-    // Passo 4: Senha do Cliente
     display_limpar();
-    display_string("Senha do cartao:");
+    display_string("SENHA CLIENTE:");
     display_posiciona(1, 0);
-    if (!le_dados_cliente(buffer_dados, 6, 1)) return; // '1' para ocultar com *
+    // Senha do cartao oculta e com confirmacao manual [cite: 57, 59]
+    if (!le_dados_cliente(buffer_dados, 6, 1, 0)) return;
 
-    // Passo 5: Simulacao de comunicacao com o BD (Fase 4 do projeto)
     display_limpar();
-    display_string("Processando...");
+    display_string("PROCESSANDO...");
     _delay_ms(1500); 
     
-    // TODO: Adicionar logica da porta Serial 19200 bps aqui futuramente
+    // Futura implementacao da Serial (UART) aqui [cite: 123, 129]
     
     display_limpar();
-    display_string("Venda Aprovada!");
+    display_string("APROVADO!"); [cite: 66]
     _delay_ms(2000);
 }
 
@@ -114,7 +121,7 @@ int main(void) {
         switch(estado_atual) {
             
             case DESLIGADO:
-                // Segurar '#' por 3 segundos pra ligar a maquina
+                // Liga o sistema ao segurar '#' por 3 segundos [cite: 28]
                 if (tecla_pressionada_bruta('#')) {
                     uint16_t tempo = 0;
                     while (tecla_pressionada_bruta('#') && tempo < 300) {
@@ -124,55 +131,56 @@ int main(void) {
                     if (tempo >= 300) {
                         display_on();
                         estado_atual = LOGIN;
-                        while(tecla_pressionada_bruta('#')); // Espera o cara soltar o dedo
+                        while(tecla_pressionada_bruta('#')); 
                     }
                 }
                 break;
 
             case LOGIN:
                 display_limpar();
-                display_string("SENHA ACESSO:");
+                display_string("SENHA ACESSO:"); [cite: 35]
                 display_posiciona(1, 0);
                 
-                char senha_operador[5];
-                // Se o cara cancelar (X ou *), a funcao retorna 0 e a gente desliga
-                if (!le_dados_cliente(senha_operador, 4, 1)) {
+                char senha_op[5];
+                // No login, o sistema entra direto ao digitar o 4o digito (auto_submit = 1)
+                if (!le_dados_cliente(senha_op, 4, 1, 1)) {
                     estado_atual = DESLIGADO;
                     display_limpar();
                     display_off();
                     break;
                 }
 
-                // Verifica contra os usuarios cadastrados no PDF
-                if (strcmp(senha_operador, "1254") == 0 || 
-                    strcmp(senha_operador, "2349") == 0 || 
-                    strcmp(senha_operador, "0738") == 0) {
+                // Verifica senhas pre-definidas [cite: 46, 47, 48]
+                if (strcmp(senha_op, "1254") == 0 || 
+                    strcmp(senha_op, "2349") == 0 || 
+                    strcmp(senha_op, "0738") == 0) {
+                    display_limpar();
+                    display_string("BEM-VINDO!"); [cite: 42]
+                    _delay_ms(1000);
                     estado_atual = MENU_PRINCIPAL;
                 } else {
                     display_limpar();
-                    display_string("SENHA INVALIDA");
+                    display_string("SENHA INVALIDA"); [cite: 37]
                     _delay_ms(2000);
                 }
                 break;
 
             case MENU_PRINCIPAL:
                 display_limpar();
-                display_string("1-Venda a Vista");
+                display_string("1-VENDA A VISTA");
                 display_posiciona(1, 0);
-                display_string("2-Parcela *-Sair");
+                display_string("*-SAIR");
 
-                char opcao = espera_tecla_com_shutdown();
+                char op = espera_tecla_com_shutdown();
                 
-                if (opcao == 'X' || opcao == '*') {
+                if (op == 'X' || op == '*') {
                     estado_atual = DESLIGADO;
                     display_limpar();
                     display_off();
                 } 
-                else if (opcao == '1') {
+                else if (op == '1') {
                     fluxo_venda_vista();
                 }
-                // else if (opcao == '2') fluxo_venda_parcelada();
-                // else if (opcao == '3') fluxo_estorno();
                 break;
         }
     }
