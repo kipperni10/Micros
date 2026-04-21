@@ -1,35 +1,51 @@
+#define F_CPU 16000000UL
+#include <avr/io.h>
+#include <util/delay.h>
 #include "teclado.h"
 
-#define _XTAL_FREQ 20000000
+void configura_pinos_teclado() {
+	DDRD |= 0xF0;  PORTD |= 0xF0;
+	DDRC &= ~0x07; PORTC |= 0x07;
+}
 
-char ler_teclado(void) {
-    // Varredura da Linha 1
-    ROW1 = 0; ROW2 = 1; ROW3 = 1; ROW4 = 1;
-    if(COL1 == 0) { __delay_ms(20); while(COL1==0); return '1'; }
-    if(COL2 == 0) { __delay_ms(20); while(COL2==0); return '2'; }
-    if(COL3 == 0) { __delay_ms(20); while(COL3==0); return '3'; }
-    if(COL4 == 0) { __delay_ms(20); while(COL4==0); return 'A'; }
-    
-    // Varredura da Linha 2
-    ROW1 = 1; ROW2 = 0; ROW3 = 1; ROW4 = 1;
-    if(COL1 == 0) { __delay_ms(20); while(COL1==0); return '4'; }
-    if(COL2 == 0) { __delay_ms(20); while(COL2==0); return '5'; }
-    if(COL3 == 0) { __delay_ms(20); while(COL3==0); return '6'; }
-    if(COL4 == 0) { __delay_ms(20); while(COL4==0); return 'B'; }
-    
-    // Varredura da Linha 3
-    ROW1 = 1; ROW2 = 1; ROW3 = 0; ROW4 = 1;
-    if(COL1 == 0) { __delay_ms(20); while(COL1==0); return '7'; }
-    if(COL2 == 0) { __delay_ms(20); while(COL2==0); return '8'; }
-    if(COL3 == 0) { __delay_ms(20); while(COL3==0); return '9'; }
-    if(COL4 == 0) { __delay_ms(20); while(COL4==0); return 'C'; }
-    
-    // Varredura da Linha 4
-    ROW1 = 1; ROW2 = 1; ROW3 = 1; ROW4 = 0;
-    if(COL1 == 0) { __delay_ms(20); while(COL1==0); return '*'; } // Botão CANCELA
-    if(COL2 == 0) { __delay_ms(20); while(COL2==0); return '0'; }
-    if(COL3 == 0) { __delay_ms(20); while(COL3==0); return '#'; } // Botão CONFIRMA
-    if(COL4 == 0) { __delay_ms(20); while(COL4==0); return 'D'; }
-    
-    return 0; // Retorna 0 se nenhuma tecla foi pressionada
+uint8_t debounce(uint8_t pino_coluna) {
+	uint8_t count = 0;
+	uint8_t key_now, key_last = 0;
+	while (count < 7) {
+		_delay_ms(2);
+		if (pino_coluna == 0) key_now = (PINC & (1 << PC0)) ? 1 : 0;
+		else if (pino_coluna == 1) key_now = (PINC & (1 << PC1)) ? 1 : 0;
+		else if (pino_coluna == 2) key_now = (PINC & (1 << PC2)) ? 1 : 0;
+		if (key_now == key_last) count++;
+		else { count = 0; key_last = key_now; }
+	}
+	return key_now;
+}
+
+char le_tecla() {
+	const char keys[4][3] = {{'1','2','3'},{'4','5','6'},{'7','8','9'},{'*','0','#'}};
+	for (int r = 0; r < 4; r++) {
+		PORTD |= 0xF0; PORTD &= ~(1 << (r + 4)); _delay_us(10);
+		for (int c = 0; c < 3; c++) {
+			if (!(PINC & (1 << c))) {
+				if (debounce(c) == 0) {
+					while (debounce(c) == 0);
+					return keys[r][c];
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+uint8_t tecla_pressionada_bruta(char tecla_alvo) {
+	if (tecla_alvo == '#') {
+		PORTD |= 0xF0; PORTD &= ~(1 << PD7); _delay_us(10);
+		if (!(PINC & (1 << PC2))) return 1;
+	}
+	if (tecla_alvo == '*') {
+		PORTD |= 0xF0; PORTD &= ~(1 << PD7); _delay_us(10);
+		if (!(PINC & (1 << PC0))) return 1;
+	}
+	return 0;
 }
