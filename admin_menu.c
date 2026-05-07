@@ -74,9 +74,9 @@ void menu_config_pendencias() {
 char fluxo_menu_admin() {
 	while(1) {
 		display_limpar();
-		display_string("1-OPs 2-HR ");
+		display_string("1-OP 2-HR 3-PND");
 		display_posiciona(1, 0);
-		display_string("3-PEND *-SAIR");
+		display_string("4-SALDO *-SAIR");
 		
 		char op = 0;
 		uint8_t tempo_refresh = 0;
@@ -91,34 +91,26 @@ char fluxo_menu_admin() {
 				display_string(hora_atual);
 			}
 
-			// O nosso filtro anti-falha antes de deixar a le_tecla congelar o sistema
 			if (tecla_pressionada_bruta('*')) {
 				uint16_t tempo = 0;
 				uint8_t falhas = 0;
 				
 				while (tempo < 300) {
-					if (tecla_pressionada_bruta('*')) {
-						falhas = 0;
-						} else {
-						falhas++;
-						if (falhas > 5) break;
-					}
+					if (tecla_pressionada_bruta('*')) falhas = 0;
+					else { falhas++; if (falhas > 5) break; }
 					tempo++;
 					_delay_ms(10);
 				}
 				
-				if (tempo >= 300) {
-					op = 'X'; // Desliga NA HORA
-					} else {
+				if (tempo >= 300) op = 'X';
+				else {
 					while(tecla_pressionada_bruta('*')) _delay_ms(10);
-					op = '*'; // Volta
+					op = '*';
 				}
 			}
 			else {
 				char t = le_tecla();
-				if (t != 0 && t != '*') {
-					op = t;
-				}
+				if (t != 0 && t != '*') op = t;
 			}
 			
 			if (op == 0) _delay_ms(20);
@@ -130,5 +122,6 @@ char fluxo_menu_admin() {
 		if (op == '1') menu_config_operadores();
 		if (op == '2') menu_config_hora();
 		if (op == '3') menu_config_pendencias();
+		if (op == '4') relatorio_saldos_locais();
 	}
 }

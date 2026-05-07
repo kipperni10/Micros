@@ -1,3 +1,7 @@
+// Projeto 1 - MicPay - Bianca Bitencourt, Henrique Bitencourt e Nicolas da Silveira Kipper //
+
+// Arquivo: display
+
 #ifndef DISPLAY_H_
 #define DISPLAY_H_
 
@@ -12,4 +16,4 @@ void display_posiciona(uint8_t linha, uint8_t coluna);
 void display_on(void);
 void display_off(void);
 
-#endif /* DISPLAY_H_ */
+#endif
