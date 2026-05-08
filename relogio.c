@@ -3,27 +3,19 @@
 #include <avr/interrupt.h>
 #include "relogio.h"
 
-// Variáveis voláteis porque são alteradas dentro de uma interrupção
 volatile uint8_t r_horas = 0;
 volatile uint8_t r_minutos = 0;
 volatile uint8_t r_segundos = 0;
+volatile uint8_t tempo_sem_comunicacao = 0;
+volatile uint8_t flag_checar_pendencias = 0; // Inicia abaixada
 
-void relogio_init() {
-	// Configura Timer1 para Modo CTC (Clear Timer on Compare Match)
-	// Prescaler de 256. (16MHz / 256 = 62500 ticks por segundo)
+void iniciar_relogio() {
 	TCCR1B |= (1 << WGM12) | (1 << CS12);
-	
-	// Define o topo da contagem para 1 segundo (62500 - 1)
 	OCR1A = 62499;
-	
-	// Habilita a interrupção do Timer1
 	TIMSK1 |= (1 << OCIE1A);
-	
-	// Habilita interrupções globais do microcontrolador
 	sei();
 }
 
-// Essa função roda sozinha a cada 1 segundo
 ISR(TIMER1_COMPA_vect) {
 	r_segundos++;
 	if (r_segundos >= 60) {
@@ -35,18 +27,33 @@ ISR(TIMER1_COMPA_vect) {
 			if (r_horas >= 24) r_horas = 0;
 		}
 	}
+	
+	// --- GATILHO DA FASE 3: HORÁRIOS DE VERIFICAÇÃO ---
+	if (r_segundos == 0 && r_minutos == 0) {
+		if (r_horas == 12 || r_horas == 18 || r_horas == 22) {
+			flag_checar_pendencias = 1; // Levanta a bandeira para o sistema checar!
+		}
+	}
+	
+	// --- Lógica do LED Vermelho (Fora do Ar) ---
+	if (tempo_sem_comunicacao < 120) {
+		tempo_sem_comunicacao++;
+	}
+	
+	if (tempo_sem_comunicacao >= 120) {
+		PORTD |= (1 << PD2);
+	}
 }
 
-void relogio_set(uint8_t h, uint8_t m, uint8_t s) {
-	cli(); // Pausa interrupções para não dar conflito ao alterar
+void ajustar_relogio(uint8_t h, uint8_t m, uint8_t s) {
+	cli();
 	r_horas = h;
 	r_minutos = m;
 	r_segundos = s;
-	sei(); // Retoma interrupções
+	sei();
 }
 
-// Preenche um texto no formato "HH:MM"
-void relogio_get_string(char* buffer) {
+void leitura_horas(char* buffer) {
 	cli();
 	uint8_t h = r_horas, m = r_minutos;
 	sei();
@@ -57,4 +64,11 @@ void relogio_get_string(char* buffer) {
 	buffer[3] = (m / 10) + '0';
 	buffer[4] = (m % 10) + '0';
 	buffer[5] = '\0';
+}
+
+void reset_tempo_comunicacao() {
+	cli();
+	tempo_sem_comunicacao = 0;
+	PORTD &= ~(1 << PD2);
+	sei();
 }

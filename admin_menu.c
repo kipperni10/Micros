@@ -46,7 +46,7 @@ void menu_config_hora() {
 		uint8_t m = (buffer[2]-'0')*10 + (buffer[3]-'0');
 		
 		if (h < 24 && m < 60) {
-			relogio_set(h, m, 0);
+			ajustar_relogio(h, m, 0);
 			display_limpar(); display_string("HORA SALVA!");
 			} else {
 			display_limpar(); display_string("HORA INVALIDA!");
@@ -66,17 +66,16 @@ void menu_config_pendencias() {
 		pendencias_ativas = !pendencias_ativas;
 		display_limpar(); display_string("SALVO!"); _delay_ms(1000);
 		} else if (op == '1') {
-		display_limpar(); display_string("NENHUMA PENDENTE");
-		_delay_ms(2000);
+		exibir_pendencias_admin();
 	}
 }
 
 char fluxo_menu_admin() {
 	while(1) {
 		display_limpar();
-		display_string("1-OP 2-HR 3-PND");
+		display_string("1-OP 2-HR"); // Linha 0 (Sobra espaço certinho pro relógio no canto)
 		display_posiciona(1, 0);
-		display_string("4-SALDO *-SAIR");
+		display_string("3-PND 4-SALDO"); // Linha 1
 		
 		char op = 0;
 		uint8_t tempo_refresh = 0;
@@ -86,8 +85,8 @@ char fluxo_menu_admin() {
 			if (tempo_refresh >= 10) {
 				tempo_refresh = 0;
 				char hora_atual[6];
-				relogio_get_string(hora_atual);
-				display_posiciona(0, 11);
+				leitura_horas(hora_atual);
+				display_posiciona(0, 11); // Escreve o HH:MM bem no canto superior direito
 				display_string(hora_atual);
 			}
 
@@ -96,8 +95,12 @@ char fluxo_menu_admin() {
 				uint8_t falhas = 0;
 				
 				while (tempo < 300) {
-					if (tecla_pressionada_bruta('*')) falhas = 0;
-					else { falhas++; if (falhas > 5) break; }
+					if (tecla_pressionada_bruta('*')) {
+						falhas = 0;
+						} else {
+						falhas++;
+						if (falhas > 5) break;
+					}
 					tempo++;
 					_delay_ms(10);
 				}
@@ -116,6 +119,7 @@ char fluxo_menu_admin() {
 			if (op == 0) _delay_ms(20);
 		}
 		
+		// Embora não apareça na tela, a tecla * continua servindo para voltar ao login
 		if (op == '*') return '*';
 		if (op == 'X') return 'X';
 		
