@@ -17,18 +17,18 @@ void pulso() {
 
 void envia_bits(uint8_t valor, uint8_t tipo) { // uint8_t para inteiro, positivo e 8 bits
     if (tipo) {
-        PORTB |= (1 << PB0); // é um dado, algo a ser mostrado
+        PORTB |= (1 << PB0); // e um dado, algo a ser mostrado
     } else {
-        PORTB &= ~(1 << PB0); // é um comando, limpar etc
+        PORTB &= ~(1 << PB0); // e um comando, limpar etc
     }
 
     PORTB &= ~((1 << PB2) | (1 << PB3) | (1 << PB4)); // inicia limpando
     PORTC &= ~(1 << PC3); // inicia limpando
 
-    if (valor & 0x01) PORTB |= (1 << PB2); // locação bit 1
-    if (valor & 0x02) PORTB |= (1 << PB3); // locação bit 2
-    if (valor & 0x04) PORTB |= (1 << PB4); // locação bit 3
-    if (valor & 0x08) PORTC |= (1 << PC3); // locação bit 4
+    if (valor & 0x01) PORTB |= (1 << PB2); // locacao bit 1
+    if (valor & 0x02) PORTB |= (1 << PB3); // locacao bit 2
+    if (valor & 0x04) PORTB |= (1 << PB4); // locacao bit 3
+    if (valor & 0x08) PORTC |= (1 << PC3); // locacao bit 4
 
     pulso();
 }
@@ -47,7 +47,7 @@ void display_dado(uint8_t dado) {
 
 void display_string(const char *texto) {
     while (*texto) {
-        display_dado(*texto++); // digitador automático
+        display_dado(*texto++); // digitador automatico
     }
 }
 
@@ -79,21 +79,21 @@ void display_off() {
 }
 
 void inicializa_display() {
-    DDRB |= (1 << PB0) | (1 << PB1) | (1 << PB2) | (1 << PB3) | (1 << PB4); // configura as portas como saídas
-    DDRC |= (1 << PC3) | (1 << PC4);                                        // configura as portas como saídas
+    DDRB |= (1 << PB0) | (1 << PB1) | (1 << PB2) | (1 << PB3) | (1 << PB4); // configura as portas como saidas
+    DDRC |= (1 << PC3) | (1 << PC4);                                        // configura as portas como saidas
     _delay_ms(50);
 
     // envia 3 vezes, dica do manual
     envia_bits(0x03, 0);
-    _delay_ms(5);        // 1° pausa longa
+    _delay_ms(5);        // 1a pausa longa
 
     envia_bits(0x03, 0);
-    _delay_us(150);      // 2° pausa curta
+    _delay_us(150);      // 2a pausa curta
 
     envia_bits(0x03, 0); // a certeza
     envia_bits(0x02, 0); // entra em 4bits
 
     display_comando(0x28); // 2 linhas, fonte 5x8
-    display_off();         // desliga temporariamente para o usuário não ver resíduos
+    display_off();         // desliga temporariamente para o usuario nao ver residuos
     display_limpar();      // garantia tela 100% em branco
 }
