@@ -16,5 +16,6 @@ void relatorio_saldos_locais(void);
 void exibir_pendencias_admin(void);
 void processar_pendencias_servidor(void);
 void fazer_login_servidor(char id, char* nome_saida);
+uint8_t verificar_existem_pendencias(void);
 
 #endif

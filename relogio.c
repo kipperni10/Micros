@@ -11,50 +11,71 @@
 volatile uint8_t r_horas = 0;
 volatile uint8_t r_minutos = 0;
 volatile uint8_t r_segundos = 0;
+volatile uint16_t tempo_sem_comunicacao = 0; // novo contador para o led vermelho
+
+extern uint8_t flag_checar_pendencias; // avisa a main quando der o horario definido
 
 void iniciar_relogio() {
-    TCCR1B |= (1 << WGM12) | (1 << CS12); // CS12 = prescaler de 256, 16.000.000/256 = 62500
-    
-    OCR1A = 62499; // Output Compare Register, em qual numero o alarme toca (62500-1)
-    
-    TIMSK1 |= (1 << OCIE1A); // quando chega na contagem acusa, e a mascara de interrupcoes
-    
-    sei(); // habilita as interrupcoes globais
+	TCCR1B |= (1 << WGM12) | (1 << CS12); // CS12 = prescaler de 256, 16.000.000/256 = 62500
+	
+	OCR1A = 62499; // Output Compare Register, em qual numero o alarme toca (62500-1)
+	
+	TIMSK1 |= (1 << OCIE1A); // quando chega na contagem acusa, e a mascara de interrupcoes
+	
+	sei(); // habilita as interrupcoes globais
 }
 
 ISR(TIMER1_COMPA_vect) { // TIMER1_COMPA_vect, faz rodar o laco toda vez que o timer aciona, a cada 1seg
-    r_segundos++;
-    if (r_segundos >= 60) {
-        r_segundos = 0;
-        r_minutos++;
-        if (r_minutos >= 60) {
-            r_minutos = 0;
-            r_horas++;
-            if (r_horas >= 24) r_horas = 0;
-        }
-    }
+	r_segundos++;
+	if (r_segundos >= 60) {
+		r_segundos = 0;
+		r_minutos++;
+		if (r_minutos >= 60) {
+			r_minutos = 0;
+			r_horas++;
+			if (r_horas >= 24) r_horas = 0;
+		}
+	}
+	
+	// logica led vermelho (2 min sem comunicacao)
+	tempo_sem_comunicacao++;
+	if (tempo_sem_comunicacao >= 120) {
+		PORTD |= (1 << PD3); // acende o led vermelho
+	}
+	
+	// logica led amarelo (aciona a checagem em 3 horarios: 08:00, 12:00 e 18:00)
+	if ((r_horas == 8 || r_horas == 12 || r_horas == 18) && r_minutos == 0 && r_segundos == 0) {
+		flag_checar_pendencias = 1; // levanta a bandeira
+	}
 }
 
 void ajustar_relogio(uint8_t h, uint8_t m, uint8_t s) { // uint8_t para inteiro, positivo e 8 bits
-    cli(); // desabilito as interrupcoes, mesmo o timer de 1seg acionando o relogio congela
-    
-    // insiro manualmente
-    r_horas = h;
-    r_minutos = m; 
-    r_segundos = s;
-    
-    sei(); // habilito as interrupcoes
+	cli(); // desabilito as interrupcoes, mesmo o timer de 1seg acionando o relogio congela
+	
+	// insiro manualmente
+	r_horas = h;
+	r_minutos = m;
+	r_segundos = s;
+	
+	sei(); // habilito as interrupcoes
 }
 
 void leitura_horas(char* buffer) {
-    cli();
-    uint8_t h = r_horas, m = r_minutos; // HH:MM
-    sei();
-    
-    buffer[0] = (h / 10) + '0'; // isolo a dezena
-    buffer[1] = (h % 10) + '0'; // isolo a unidade
-    buffer[2] = ':';
-    buffer[3] = (m / 10) + '0'; // isolo a dezena
-    buffer[4] = (m % 10) + '0'; // isolo a unidade
-    buffer[5] = '\0';
+	cli();
+	uint8_t h = r_horas, m = r_minutos; // HH:MM
+	sei();
+	
+	buffer[0] = (h / 10) + '0'; // isolo a dezena
+	buffer[1] = (h % 10) + '0'; // isolo a unidade
+	buffer[2] = ':';
+	buffer[3] = (m / 10) + '0'; // isolo a dezena
+	buffer[4] = (m % 10) + '0'; // isolo a unidade
+	buffer[5] = '\0';
+}
+
+void reset_tempo_comunicacao() {
+	cli();
+	tempo_sem_comunicacao = 0; // zera o cronometro
+	PORTD &= ~(1 << PD3); // apaga o led vermelho imediatamente
+	sei();
 }

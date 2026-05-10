@@ -55,6 +55,13 @@ void adiciona_pendencia(char bandeira, char* cartao, char* valor) {
 	}
 }
 
+uint8_t verificar_existem_pendencias() {
+	for(int i = 0; i < MAX_PENDENCIAS; i++) {
+		if(lista_pendencias[i].status != 0) return 1; // tem pendencia
+	}
+	return 0; // vazio
+}
+
 // congela a maquina esperando o operador digitar, mas monitora 3 segundos no * para desligar
 char espera_tecla() {
 	while(1) {
@@ -119,7 +126,7 @@ void fazer_login_servidor(char id, char* nome_saida) {
 	
 	char r1 = serial_recebe_char(3000); // espera ate 3s pelo pc
 	if (r1 == 'S') {
-		PORTD &= ~(1 << PD3); // se o servidor respondeu apaga o led imediatamente
+		reset_tempo_comunicacao(); // se o servidor respondeu apaga o led vermelho imediatamente
 		char r2 = serial_recebe_char(1000);
 		if (r2 == 'L') {
 			(void)serial_recebe_char(1000);
@@ -171,7 +178,7 @@ char envia_transacao_e_espera(char tipo, char bandeira, char* cartao, char* senh
 			continue;
 		}
 		
-		PORTD &= ~(1 << PD3); // se o servidor respondeu apaga o led imediatamente
+		reset_tempo_comunicacao(); // se o servidor respondeu apaga o led vermelho imediatamente
 
 		char r2 = serial_recebe_char(1000);
 		if (r2 == 'X') return 'X'; // pc mandou forcar logoff
@@ -364,7 +371,7 @@ void fluxo_estorno() {
 
 // exibe na tela para o administrador todas as transacoes aguardando upload
 void exibir_pendencias_admin() {
-	PORTD &= ~(1 << PD3); // desliga o led de alerta vermelho no pino d3
+	PORTD &= ~(1 << PD2); // desliga o led de alerta amarelo no pino d2
 
 	uint8_t tem_pendencia = 0;
 	for(int i = 0; i < MAX_PENDENCIAS; i++) {
@@ -415,7 +422,7 @@ void processar_pendencias_servidor() {
 				char r1 = serial_recebe_char(5000);
 				if (r1 != 'S') continue;
 				
-				PORTD &= ~(1 << PD3); // se o servidor respondeu apaga o led imediatamente
+				reset_tempo_comunicacao(); // se o servidor respondeu apaga o led vermelho imediatamente
 
 				char r2 = serial_recebe_char(1000);
 				if (r2 != 'A') continue;
@@ -432,5 +439,6 @@ void processar_pendencias_servidor() {
 			}
 		}
 	}
-	if (falhou_alguma) PORTD |= (1 << PD3); // acende o led no pino d3 alertando o adm
+	if (falhou_alguma) PORTD |= (1 << PD2); // acende o led amarelo no pino d2 alertando o adm
+	else PORTD &= ~(1 << PD2); // apaga se conseguiu subir tudo
 }

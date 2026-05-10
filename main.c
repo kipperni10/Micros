@@ -17,7 +17,7 @@ typedef enum { DESLIGADO, LOGIN, MENU_PRINCIPAL, MENU_ADMIN } estados_sistema; /
 estados_sistema estado_atual = DESLIGADO; // sistema inicia com o display desligado
 
 extern uint8_t pendencias_ativas;
-uint8_t flag_checar_pendencias = 1;
+uint8_t flag_checar_pendencias = 0; // alterado para iniciar em 0 (aguarda o horario certo)
 
 int main(void) {
 	configura_pinos_teclado();
@@ -119,6 +119,13 @@ int main(void) {
 			while(op == 0) { // laco de espera enquanto operador nao aperta nenhum botao
 				if (flag_checar_pendencias) {
 					flag_checar_pendencias = 0; // baixa a bandeira para nao verificar em loop
+					
+					if (verificar_existem_pendencias()) {
+						PORTD |= (1 << PD2); // acende o led amarelo caso existam pendencias
+						} else {
+						PORTD &= ~(1 << PD2); // garante que ficara apagado senao tiver
+					}
+
 					if (pendencias_ativas) { // verifica se o adm deixou a funcao ON
 						display_limpar();
 						display_string("CHECANDO PEND..."); // aviso para operador
