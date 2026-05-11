@@ -231,6 +231,7 @@ void fluxo_venda_vista() {
 	display_limpar(); display_string("NUMERO CARTAO:"); display_posiciona(1, 0);
 	if (!le_dados_cliente(buffer_cartao, 6, 0, 0)) return;
 	
+	uint8_t tentativas = 0;
 	while(1) {
 		display_limpar(); display_string("SENHA CLIENTE:"); display_posiciona(1, 0);
 		if (!le_dados_cliente(buffer_senha, 6, 1, 0)) return;
@@ -265,6 +266,8 @@ void fluxo_venda_vista() {
 			char res = envia_transacao_e_espera('V', bandeira, buffer_cartao, buffer_senha, NULL, buffer_valor);
 			if (res == 'S') {
 				display_limpar(); display_string("SENHA INVALIDA"); _delay_ms(2000);
+				tentativas++;
+				if (tentativas >= 3) return;
 				} else {
 				display_limpar();
 				if (res == 'V') display_string("EXTERNO APROVADO");
@@ -299,6 +302,7 @@ void fluxo_venda_parcelada() {
 	display_limpar(); display_string("NUMERO CARTAO:"); display_posiciona(1, 0);
 	if (!le_dados_cliente(buffer_cartao, 6, 0, 0)) return;
 	
+	uint8_t tentativas = 0;
 	while(1) {
 		display_limpar(); display_string("SENHA CLIENTE:"); display_posiciona(1, 0);
 		if (!le_dados_cliente(buffer_senha, 6, 1, 0)) return;
@@ -312,6 +316,8 @@ void fluxo_venda_parcelada() {
 			char res = envia_transacao_e_espera('P', bandeira, buffer_cartao, buffer_senha, buffer_parcelas, buffer_valor);
 			if (res == 'S') {
 				display_limpar(); display_string("SENHA INVALIDA"); _delay_ms(2000);
+				tentativas++;
+				if (tentativas >= 3) return;
 				} else {
 				display_limpar();
 				if (res == 'V') {
@@ -332,11 +338,16 @@ void fluxo_venda_parcelada() {
 void fluxo_estorno() {
 	char buffer_dados[10], buffer_valor[10], buffer_bandeira[2], buffer_cartao[10];
 	
+	uint8_t tentativas = 0;
 	while(1) { // protecao extra: exige senha do operador ou admin para estornar dinheiro
 		display_limpar(); display_string("SENHA OPERADOR:"); display_posiciona(1, 0);
 		if (!le_dados_cliente(buffer_dados, 4, 1, 1)) return;
 		if (strcmp(buffer_dados, "1254") == 0 || strcmp(buffer_dados, "2349") == 0 || strcmp(buffer_dados, "0738") == 0) break;
-		else { display_limpar(); display_string("SENHA INVALIDA"); _delay_ms(2000); }
+		else {
+			display_limpar(); display_string("SENHA INVALIDA"); _delay_ms(2000);
+			tentativas++;
+			if (tentativas >= 3) return;
+		}
 	}
 	
 	display_limpar(); display_string("VALOR ESTORNO:"); display_posiciona(1, 0); display_string("R$ ");
